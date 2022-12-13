@@ -8,7 +8,7 @@ from casadi import SX, vertcat, horzcat, sum1, inf, Function, diag, nlpsol, fabs
 
 from nosnoc.nosnoc_opts import NosnocOpts
 from nosnoc.nosnoc_types import MpccMode, InitializationStrategy, CrossComplementarityMode, StepEquilibrationMode, PssMode, IrkRepresentation, HomotopyUpdateRule
-from nosnoc.utils import casadi_length, print_casadi_vector, casadi_vertcat_list, casadi_sum_list, flatten_layer, flatten, increment_indices
+from nosnoc.utils import casadi_length, print_casadi_vector, casadi_vertcat_list, casadi_sum_list, flatten_layer, flatten, increment_indices, experimental_guard
 from nosnoc.rk_utils import rk4_on_timegrid
 
 
@@ -125,28 +125,6 @@ class NosnocModel:
         self.std_compl_res_fun = Function('std_compl_res_fun', [z], [std_compl_res])
         self.mu00_stewart_fun = Function('mu00_stewart_fun', [self.x], [mu00_stewart])
 
-    def add_smooth_step_representation(self, smoothing_parameter = 1e2):
-        dims = self.dims
-
-        # smooth step function
-        y = SX.sym('y')
-        smooth_step_fun = Function('smooth_step_fun', [y], [tanh(smoothing_parameter*y)])
-
-        # create theta_smooth, f_x_smooth
-        theta_list = [SX.zeros(nf) for nf in dims.n_f_sys]
-        f_x_smooth = SX.zeros((dims.nx, 1))
-        for s in range(dims.n_sys):
-            n_c: int = dims.n_c_sys[s]
-            alpha_expr_s = casadi_vertcat_list([smooth_step_fun(self.c[s][i]) for i in range(n_c)])
-            for i in range(dims.n_f_sys[s]):
-                n_Ri = sum(np.abs(self.S[s][i,:]))
-                theta_list[s][i] = 2 ** (n_c - n_Ri)
-                for j in range(n_c):
-                    theta_list[s][i] *= ((1- self.S[s][i, j])/2 + self.S[s][i, j] * alpha_expr_s[j])
-            f_x_smooth += self.F[s] @ theta_list[s]
-        theta_smooth = casadi_vertcat_list(theta_list)
-        self.f_x_smooth_fun = Function('f_x_smooth_fun', [self.x], [f_x_smooth])
-        self.theta_smooth_fun = Function('theta_smooth_fun', [self.x], [theta_smooth])
 
 class NosnocOcp:
     """
@@ -665,6 +643,7 @@ class NosnocSolver(NosnocFormulationObject):
         ocp.preprocess_ocp(model.x, model.u)
 
         if opts.initialization_strategy == InitializationStrategy.RK4_SMOOTHENED:
+            experimental_guard()
             self.model.add_smooth_step_representation()
 
         h_ctrl_stage = opts.terminal_time / opts.N_stages
@@ -761,6 +740,7 @@ class NosnocSolver(NosnocFormulationObject):
         elif opts.initialization_strategy == InitializationStrategy.RK4_SMOOTHENED:
             # print(f"updating w0 with RK4 smoothened")
             # NOTE: assume N_stages = 1 and STEWART
+            experimental_guard()
             dt_fe = opts.terminal_time / (opts.N_stages * opts.N_finite_elements)
             irk_time_grid = np.array([opts.irk_time_points[0]] + [opts.irk_time_points[k] - opts.irk_time_points[k-1] for k in range(1, opts.n_s)])
             rk4_t_grid = dt_fe * irk_time_grid

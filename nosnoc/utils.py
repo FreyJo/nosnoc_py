@@ -1,5 +1,5 @@
-import numpy as np
 import casadi as ca
+import sys
 
 
 def validate(obj: object) -> bool:
@@ -73,3 +73,8 @@ def increment_indices(L, inc):
         else:
             raise ValueError('Not a nested list of integers')
     return L_new
+
+
+def experimental_guard():
+    if 'nosnoc.experimental' not in sys.modules:
+        raise Exception("Trying to use an experimental feature without importing nosnoc.experimental")

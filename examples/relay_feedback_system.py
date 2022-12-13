@@ -1,4 +1,5 @@
 import nosnoc
+import nosnoc.experimental
 from casadi import SX, horzcat
 from datetime import datetime
 
@@ -60,6 +61,7 @@ def main():
     opts.print_level = 1
     opts.homotopy_update_rule = nosnoc.HomotopyUpdateRule.SUPERLINEAR
     opts.homotopy_update_exponent = 1.4
+    opts.initialization_strategy = nosnoc.InitializationStrategy.RK4_SMOOTHENED
 
     Tsim = 10
     Nsim = 200
@@ -171,5 +173,5 @@ def plot_algebraic_variables(results):
 
 
 if __name__ == "__main__":
-    main_rk4_simulation()
+    # main_rk4_simulation()
     main()
